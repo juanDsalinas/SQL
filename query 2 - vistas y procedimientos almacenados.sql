@@ -163,3 +163,112 @@ end;
 //
 
 call SPSuspendeProductos(10);
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+Use neptunedb;
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+create table RegistroEnvios
+ (IdRegEnvio int AUTO_INCREMENT primary key,
+  NumPedido int not null,
+  fechaEntrega datetime,
+  CodEmpEnvio int,
+  CargoPedido float,
+  CiudadDestino varchar(15))
+
+delimiter //
+Create TRIGGER InsTransCarga
+AFTER INSERT ON pedido 
+FOR EACH ROW 
+BEGIN 
+insert into registroenvios(NumPedido, fechaEntrega, CodEmpEnvio, CargoPedido, CiudadDestino) 
+Values (new.IdPedido, new.FechaEntrega, new.IdEmpresasTransporte, new.Cargo, new.CiudadDestinatario); 
+END;
+//
+
+
+INSERT INTO `pedido` (`IdPedido`, `IdCliente`, `IdEmpleado`, `FechaPedido`, `FechaEntrega`, `FechaEnvio`, `IdEmpresasTransporte`, `Cargo`, 
+`Destinatario`, `DireccionDestinatario`, `CiudadDestinatario`, `RegionDestinatario`, `CodPostalDestinatario`, `PaisDestinatario`)
+VALUES ('11079', 'ALFKI', '5', '2022-08-30', '2022-08-30', '2022-08-30', '3', '12', 'no aplica', 'no aplica', 'bogota', 'bogota', '17', 'Colombia');
+
+
+select * from pedido where idPedido='11079';
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+create table ModificarPrecio
+ (IdModificacion int AUTO_INCREMENT primary key,
+  CodProducto int not null,
+  PrecioProducto FLOAT,
+  PrecioNuevo FLOAT,
+  Fecha DATETIME DEFAULT CURRENT_DATE(),
+  Usuario varchar(50) default USER()
+  )
+
+DELIMITER //
+CREATE TRIGGER DisminuirPrecio
+BEFORE UPDATE ON Producto FOR EACH ROW
+BEGIN
+		INSERT into ModificarPrecio (CodProducto, PrecioProducto, PrecioNuevo, fecha, usuario)
+		VALUES(OLD.IdProducto, OLD.PrecioUnidad, NEW.PrecioUnidad, now() ,user() );
+  END;
+ //
+ 
+ drop trigger DisminuirPrecio;
+
+update Producto
+  set PrecioUnidad = preciounidad+(PrecioUnidad*1/100)
+  where IdProducto=2;
+
+select * from producto where idProducto=2;
+select * from ModificarPrecio;
+
+select * from ModificarPrecio m inner join Producto p on m.CodProducto=p.IdProducto;
+----------------------------------------------------------------------------------------------------------------------------------------------
+/*Trigger # 1*/
+DELIMITER //
+CREATE TRIGGER modificarCargoPedido
+BEFORE UPDATE ON pedido
+FOR EACH ROW
+BEGIN
+    IF NEW.Cargo < OLD.Cargo THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se permite reducir el cargo del pedido.';
+    END IF;
+END;
+//
+
+select * from pedido;
+update pedido set cargo=34 where idPedido=10248;
+/*drop trigger modificarCargoPedido;*/
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+/*Trigger # 2*/
+delimiter //
+create trigger modificarFechaVinculacion
+before update on empleado
+for each row
+begin
+	if new.fechaContratación < old.fechaContratación then
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se permite cambiar la fecha de vinculacion del empleado por una menor.';
+	end if;
+end;
+//
+
+select * from empleado;
+
+update empleado set fechaContratación='1993-05-03'where idEmpleado=1;
+update empleado set fechaContratación='1993-05-01'where idEmpleado=1;
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+/*trigger # 3*/
+DELIMITER //
+CREATE TRIGGER impedirBorrarDetallesDePedido
+BEFORE DELETE ON detalles_de_pedido
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'No se permite borrar detalles de pedidos.';
+END;
+//
+DELIMITER ;
+
+select * from detalles_de_pedido;
+delete from detalles_de_pedido where idDetalle=1;
