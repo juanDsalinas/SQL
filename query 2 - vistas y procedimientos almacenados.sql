@@ -14,12 +14,9 @@ end;
 call spProductDetails(1);
 
 -------------------------------------------- 2 --------------------------------------------------------
-
 create view VwDetailsEmpleado as
 select e.nombre, e.apellidos, (2023-year(fechaNacimiento)) as edad, (dp.precioUnidad*dp.cantidad) as totalVentas from empleado as e inner join pedido as p on p.idEmpleado=e.idEmpleado
 inner join detalles_de_pedido as dp on dp.idPedido=p.idPedido where e.idEmpleado=p.idEmpleado group by e.idEmpleado;
-
-select * from VwDetailsEmpleado;
 
 delimiter //
 create procedure spDetailsEmpleado(in valor int)
@@ -29,9 +26,6 @@ end;
 //
 
 call spDetailsEmpleado(200);
-
-select * from VwDetailsEmpleado where totalVentas>800;
-
 -------------------------------------------- 3 --------------------------------------------------------
 
 create view VwDetailsProduct as 
@@ -68,27 +62,52 @@ end;
 
 call ClienteDetails(3,6);
 -------------------------------------------- 5 --------------------------------------------------------
+CREATE VIEW VistaPorcentajePago (codigoCliente,nombreCompania,porcentaje_pago)AS
+SELECT
+    IdCliente,
+    NombreEmpresa,
+    (totalPrecio / totalVentas) * 100 AS porcentaje_pago
+FROM (
+    SELECT
+        vws.IdCliente,
+        vws.NombreEmpresa,
+        vws.totalPrecio,
+        (SELECT SUM(totalPrecio) FROM VwClienteDetails) AS totalVentas
+    FROM VwClienteDetails vws
+) AS subconsulta;
 
+DELIMITER //
+CREATE PROCEDURE SP_ClientesPorcentajeMayor(IN porcentaje_mayor FLOAT)
+BEGIN
+    SELECT
+        codigoCliente,
+        nombreCompania,
+        porcentaje_pago
+    FROM
+        VistaPorcentajePago
+    WHERE
+        porcentaje_pago > porcentaje_mayor;
+END;
+//
+DELIMITER ;
 
+CALL SP_ClientesPorcentajeMayor(0.01); -- Esto mostrará los clientes con un porcentaje de pago mayor al 30%
 
 -------------------------------------------- 6 --------------------------------------------------------
 CREATE VIEW vista_productoV2 AS 
 SELECT * FROM producto WHERE PrecioUnidad > 20 
 with check option; 
 
-drop view VwProducto;
-SELECT * FROM vista_productoV2;
-
 DELIMITER //
-CREATE PROCEDURE spInsertarProducto(IN nombre_producto VARCHAR(80), IN precio_unidad FLOAT)
+CREATE PROCEDURE spInsertarProducto(in id_Producto int,IN nombre_producto VARCHAR(80), IN precio_unidad FLOAT)
 BEGIN
-    INSERT INTO producto (NombreProducto, PrecioUnidad)
-    VALUES (nombre_producto, precio_unidad);
+    INSERT INTO producto (idProducto,NombreProducto, PrecioUnidad)
+    VALUES (id_Producto,nombre_producto, precio_unidad);
 END;
 //
 DELIMITER ;
 
-CALL spInsertarProducto('Clorox', 30);
+CALL spInsertarProducto(1010,'Suavitel', 30);
 
 /*se realiza el registro pero nos devuelve una alerta ya que solo se inserta el id del producto y el nombre del producto*/
 
@@ -101,20 +120,17 @@ BEGIN
 	ELSE  
 		signal sqlstate '45000' SET message_text = 'EL PRECIO NO PUEDE INCREMNETAR NI DRECREMENTAR MÁS DEL 5% DEL PRECIO ORIGINAL'; 
     END IF; 
-
 END; 
 //
 
-select * from vista_productoV2;
-drop procedure SP_modificarProduV2;
 call SP_modificarProduV2(4,23.0);
 -------------------------------------------- 7 --------------------------------------------------------
--- El funcionamiento de la clausula distinct es muy sencillo, lo que busca esta clausula es permitir que en la consulta se eliminen duplicados 
--- y de esta manera solo se mostraran aquellos datos que sean unicos 
-select * from cliente;
+-- El funcionamiento de la clausula distinct es muy sencillo, lo que busca esta clausula es permitir que en la consulta se eliminen duplicados
+-- y de esta manera solo se mostraran aquellos datos que sean unicos
 create view RegionesClienteView
-as 
-select distinct Region from cliente;
+as
+select distinct Region from cliente
+where Region is not null;
 
 select * from RegionesClienteView;
 -------------------------------------------- 8 --------------------------------------------------------
@@ -139,11 +155,11 @@ begin
         from producto
         where IdProducto=CodigoProducto;
     else 
-		set ErrorExistencias = 'La cantidad de existencias es mayor o menor a 0 por lo tanto no se puede suspender';
+		set ErrorExistencias = 'La cantidad de existencias es mayor o menor a 0 y no se puede suspender';
 		select ErrorExistencias;
 	end if;
     
 end; 
 //
 
-call SPSuspendeProductos(3);
+call SPSuspendeProductos(10);
