@@ -11,6 +11,9 @@ begin
 end; 
 //
 
+select * from VwProductoDetails;
+drop view VwProductoDetails;
+drop procedure spProductDetails;
 call spProductDetails(1);
 
 -------------------------------------------- 2 --------------------------------------------------------
@@ -24,16 +27,14 @@ begin
 	select * from VwDetailsEmpleado where totalVentas>valor; 
 end;
 //
-
+drop view VwDetailsEmpleado;
+drop procedure spDetailsEmpleado;
 call spDetailsEmpleado(200);
 -------------------------------------------- 3 --------------------------------------------------------
-
 create view VwDetailsProduct as 
 select c.nombreCategoria, p.nombreProducto, pro.idProveedor, pro.nombreEmpresa, p.cantidadPorUnidad from categoria as c
 inner join producto as p on p.idCategoria=c.idCategoria
 inner join proveedor as pro on p.idProveedor=pro.idProveedor;
-
-select * from VwDetailsProduct;
 
 delimiter //
 create procedure spDetailsProduct(in id int)
@@ -42,16 +43,14 @@ begin
 end;
 //
 
+drop view VwDetailsProduct;
+drop procedure spDetailsProduct;
 call spDetailsProduct(1);
 
 -------------------------------------------- 4 --------------------------------------------------------
 create view VwClienteDetails (idCliente, nombreEmpresa,totalPrecio,fechaPedido) as
 select c.idCliente, c.nombreEmpresa, (dp.cantidad*dp.precioUnidad) as totalPrecio, Month(p.fechaPedido) from cliente as c inner join pedido as p on p.idCliente=c.idCliente
 inner join detalles_de_pedido as dp on dp.idPedido=p.idPedido order by c.idCliente and  Month(p.fechaPedido);
-
-drop view VwClienteDetails;
-
-select * from VwClienteDetails;
 
 delimiter //
 create procedure ClienteDetails(in fechaInicial date, fechaFinal date)
@@ -60,39 +59,28 @@ begin
 end;
 //
 
+drop view VwClienteDetails;
+drop procedure ClienteDetails;
 call ClienteDetails(3,6);
 -------------------------------------------- 5 --------------------------------------------------------
 CREATE VIEW VistaPorcentajePago (codigoCliente,nombreCompania,porcentaje_pago)AS
-SELECT
-    IdCliente,
-    NombreEmpresa,
-    (totalPrecio / totalVentas) * 100 AS porcentaje_pago
-FROM (
-    SELECT
-        vws.IdCliente,
-        vws.NombreEmpresa,
-        vws.totalPrecio,
-        (SELECT SUM(totalPrecio) FROM VwClienteDetails) AS totalVentas
-    FROM VwClienteDetails vws
-) AS subconsulta;
+SELECT IdCliente,NombreEmpresa, (totalPrecio / totalVentas) * 100 AS porcentaje_pago FROM (
+SELECT vws.IdCliente, vws.NombreEmpresa, vws.totalPrecio, (SELECT SUM(totalPrecio) FROM VwClienteDetails) AS totalVentas
+FROM VwClienteDetails vws) AS subconsulta;
 
 DELIMITER //
 CREATE PROCEDURE SP_ClientesPorcentajeMayor(IN porcentaje_mayor FLOAT)
 BEGIN
-    SELECT
-        codigoCliente,
-        nombreCompania,
-        porcentaje_pago
-    FROM
-        VistaPorcentajePago
-    WHERE
-        porcentaje_pago > porcentaje_mayor;
+    SELECT codigoCliente, nombreCompania, porcentaje_pago
+    FROM VistaPorcentajePago WHERE porcentaje_pago > porcentaje_mayor;
 END;
 //
 DELIMITER ;
 
-CALL SP_ClientesPorcentajeMayor(0.01); -- Esto mostrará los clientes con un porcentaje de pago mayor al 30%
+drop view VistaPorcentajePago;
+drop procedure SP_ClientesPorcentajeMayor;
 
+CALL SP_ClientesPorcentajeMayor(0.01); -- Esto mostrará los clientes con un porcentaje de pago mayor al 30%
 -------------------------------------------- 6 --------------------------------------------------------
 CREATE VIEW vista_productoV2 AS 
 SELECT * FROM producto WHERE PrecioUnidad > 20 
@@ -123,16 +111,18 @@ BEGIN
 END; 
 //
 
+drop view vista_productoV2;
+drop procedure spInsertarProducto;
+drop procedure SP_modificarProduV2;
+
 call SP_modificarProduV2(4,23.0);
 -------------------------------------------- 7 --------------------------------------------------------
 -- El funcionamiento de la clausula distinct es muy sencillo, lo que busca esta clausula es permitir que en la consulta se eliminen duplicados
 -- y de esta manera solo se mostraran aquellos datos que sean unicos
-create view RegionesClienteView
-as
-select distinct Region from cliente
-where Region is not null;
+create view RegionesClienteView as select distinct Region from cliente where Region is not null;
 
-select * from RegionesClienteView;
+drop view RegionesClienteView;
+drop procedure spInsertarProducto;
 -------------------------------------------- 8 --------------------------------------------------------
 -- Procedimiento almacenado para inactivar o suspender productos 
 
@@ -162,8 +152,9 @@ begin
 end; 
 //
 
-call SPSuspendeProductos(10);
+drop procedure SPSuspendeProductos;
 
+call SPSuspendeProductos(10);
 ----------------------------------------------------------------------------------------------------------------------------------------------
 Use neptunedb;
 ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -222,6 +213,27 @@ select * from producto where idProducto=2;
 select * from ModificarPrecio;
 
 select * from ModificarPrecio m inner join Producto p on m.CodProducto=p.IdProducto;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ----------------------------------------------------------------------------------------------------------------------------------------------
 /*Trigger # 1*/
 DELIMITER //
@@ -254,6 +266,7 @@ end;
 //
 
 select * from empleado;
+drop trigger modificarFechaVinculacion;
 
 update empleado set fechaContratación='1993-05-03'where idEmpleado=1;
 update empleado set fechaContratación='1993-05-01'where idEmpleado=1;
@@ -269,6 +282,7 @@ BEGIN
 END;
 //
 DELIMITER ;
+drop trigger impedirBorrarDetallesDePedido;
 
 select * from detalles_de_pedido;
 delete from detalles_de_pedido where idDetalle=1;
